@@ -11,18 +11,21 @@
   },
   "dependencies": {
     "@react-navigation/material-bottom-tabs": "^6.2.29",
-    "@react-navigation/native": "^6.1.18", 
-    "@react-navigation/native-stack": "^6.11.0", 
+    "@react-navigation/native": "^6.1.18",
+    "@react-navigation/native-stack": "^6.11.0",
+    "@supabase/supabase-js": "^2.49.4",
+    "base64-arraybuffer": "^1.0.2",
     "expo": "^52.0.39",
+    "expo-image-picker": "~16.0.6",
     "expo-status-bar": "~2.0.1",
     "firebase": "^11.5.0",
+    "mime": "^4.0.7",
     "react": "18.3.1",
     "react-native": "0.76.7",
     "react-native-paper": "^5.13.1",
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0",
-    "react-native-vector-icons": "^10.2.0",
-    "expo-image-picker": "~16.0.6"
+    "react-native-vector-icons": "^10.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

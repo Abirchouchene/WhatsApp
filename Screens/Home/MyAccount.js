@@ -3,6 +3,11 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ImageBackground, I
 import { Ionicons } from '@expo/vector-icons';
 import firebase from "../../Config";
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
+import supabase from "../../Config/supabase";
+console.log("||||||||||||||||| Supabase is |||||||||||||", supabase); 
+
 
 const database = firebase.database();
 const ref_database = database.ref();
@@ -12,19 +17,19 @@ export default function MyAccount(props) {
   const [pseudo, setPseudo] = useState('');
   const [numero, setNumero] = useState('');
   const [error, setError] = useState('');
-  const [image, setImage] = useState(null);
+  const [imageUri, setImageUri] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
-  // ✅ Récupération de currentuserid transmis depuis Home.js
   const currentuserid = props.route.params.currentuserid;
 
-  const pickImageAsync = async () => {
+  const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
       alert('Permission to access gallery is required!');
       return;
     }
 
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
@@ -32,13 +37,63 @@ export default function MyAccount(props) {
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      setImageUri(result.assets[0].uri);
     } else {
       alert('You did not select any image.');
     }
   };
 
-  const handleCreateAccount = () => {
+  const uploadImageToSupabase = async (uri) => {
+    try {
+      setUploading(true);
+  
+      if (!supabase || typeof supabase.storage?.from !== 'function') {
+        throw new Error("Supabase client is not initialized correctly.");
+      }
+  
+      console.log("Reading image from URI:", uri);
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      console.log("Base64 length:", base64.length);
+  
+      const fileBuffer = decode(base64);
+      const fileName = `lesimages/${Date.now()}.jpg`;
+  
+      console.log("Uploading to Supabase storage with file name:", fileName);
+      const { error: uploadError } = await supabase.storage
+        .from("lesimages")
+        .upload(fileName, fileBuffer, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+  
+      if (uploadError) {
+        console.error("Upload failed:", uploadError.message, uploadError);
+        throw uploadError;
+      }
+  
+      const { data: urlData, error: urlError } = supabase.storage
+        .from("lesimages")
+        .getPublicUrl(fileName);
+  
+      if (urlError) {
+        console.error("URL fetch error:", urlError.message);
+        throw urlError;
+      }
+  
+      console.log("Public URL retrieved:", urlData.publicUrl);
+      return urlData.publicUrl;
+    } catch (e) {
+      console.error("Supabase Upload Error:", e.message, e);
+      setError("Failed to upload image: " + e.message);
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  const handleCreateAccount = async () => {
     if (!pseudo.trim() || !numero.trim()) {
       setError('Please fill in all fields');
       return;
@@ -49,21 +104,28 @@ export default function MyAccount(props) {
       return;
     }
 
+    let uploadedUrl = 'https://randomuser.me/api/portraits/lego/1.jpg';
+
+    if (imageUri) {
+      const url = await uploadImageToSupabase(imageUri);
+      if (url) uploadedUrl = url;
+    }
+
     const key = ref_listaccount.push().key;
     const ref_account = ref_listaccount.child("account" + key);
 
     ref_account.set({
       pseudo: pseudo.trim(),
       numero: numero.trim(),
-      image: image || 'https://randomuser.me/api/portraits/lego/1.jpg',
+      image: uploadedUrl,
       createdAt: new Date().toISOString(),
       status: "Hey there!",
-      userId: currentuserid
+      userId: currentuserid,
     })
     .then(() => {
       setPseudo('');
       setNumero('');
-      setImage(null);
+      setImageUri(null);
       setError('');
       props.navigation.navigate('ListProfils');
     })
@@ -83,9 +145,9 @@ export default function MyAccount(props) {
         </View>
 
         <View style={styles.container}>
-          <TouchableOpacity style={styles.imageContainer} onPress={pickImageAsync}>
-            {image ? (
-              <Image source={{ uri: image }} style={styles.profileImage} />
+          <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.profileImage} />
             ) : (
               <View style={styles.placeholderImage}>
                 <Ionicons name="person" size={50} color="#999" />
@@ -123,17 +185,19 @@ export default function MyAccount(props) {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
-            <Text style={styles.buttonText}>Create Account</Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" style={styles.buttonIcon} />
+          <TouchableOpacity style={styles.button} onPress={handleCreateAccount} disabled={uploading}>
+            <Text style={styles.buttonText}>
+              {uploading ? "Uploading..." : "Create Account"}
+            </Text>
+            {!uploading && <Ionicons name="arrow-forward" size={20} color="#fff" style={styles.buttonIcon} />}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.disconnectButton}
             onPress={async () => {
               try {
-                await firebase.auth().signOut(); // Sign out the user
-                props.navigation.navigate('Auth'); // Navigate to the Auth screen
+                await firebase.auth().signOut();
+                props.navigation.navigate('Auth');
               } catch (error) {
                 console.log("Error signing out: ", error.message);
               }
@@ -142,7 +206,6 @@ export default function MyAccount(props) {
             <Ionicons name="log-out-outline" size={20} color="#ff4444" style={styles.disconnectIcon} />
             <Text style={styles.disconnectText}>Disconnect</Text>
           </TouchableOpacity>
-
         </View>
       </View>
     </ImageBackground>

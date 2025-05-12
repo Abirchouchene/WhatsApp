@@ -1,252 +1,182 @@
-import React, { useState, useEffect, useRef } from "react";
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  FlatList, 
-  TextInput, 
-  TouchableOpacity, 
-  Image,
-  KeyboardAvoidingView,
-  Platform
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  FlatList,
+  StyleSheet,
+  ImageBackground,
+  TouchableOpacity,
 } from "react-native";
-import { Ionicons } from '@expo/vector-icons';
-import firebase from "../Config";
+import firebase from "../Config/index";
+import { Ionicons } from "@expo/vector-icons"; // pour l'icône d'appel
 
 const database = firebase.database();
-const ref_listDiscussions = database.ref().child("List_discussions");
 
-const Chat = ({ route, navigation }) => {
-  const { currentid, secondid, pseudo, image } = route.params;
-  const discid = [currentid, secondid].sort().join('_');
-  
-  const [msg, setMsg] = useState("");
-  const [messages, setMessages] = useState([]);
-  const flatListRef = useRef(null);
+const Chat = (props) => {
+  const currentid = props.route.params.currentid;
+  const secondid = props.route.params.secondid;
 
+  const discid = currentid > secondid ? currentid + secondid : secondid + currentid;
+  const ref_discussion = database.ref("List_discussions").child(discid);
+  const ref_messages = ref_discussion.child("messages");
+  const ref_typing_me = ref_discussion.child(currentid + "_istyping");
+  const ref_typing_other = ref_discussion.child(secondid + "_istyping");
+
+  const [istyping, setIsTyping] = useState(false);
+  const [Messages, setMessages] = useState([]);
+  const [msg, setmsg] = useState("");
+
+  // Écoute de l'état "is typing" de l'autre utilisateur
   useEffect(() => {
-    const messagesRef = ref_listDiscussions.child(discid).child("messages");
-    const listener = messagesRef.on("value", (snapshot) => {
-      const messageData = snapshot.val();
-      if (messageData) {
-        const messageList = Object.entries(messageData)
-          .map(([key, value]) => ({
-            id: key,
-            ...value,
-          }))
-          .sort((a, b) => a.time - b.time); // Sort by timestamp ascending
-        setMessages(messageList);
-        // Scroll to bottom when new messages load
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }
+    ref_typing_other.on("value", (snapshot) => {
+      setIsTyping(snapshot.val() === true);
     });
+    return () => {
+      ref_typing_other.off();
+    };
+  }, []);
 
-    return () => messagesRef.off("value", listener);
-  }, [discid]);
+  // Écoute des messages
+  useEffect(() => {
+    ref_messages.on("value", (snapshot) => {
+      let d = [];
+      snapshot.forEach((snap) => {
+        d.push(snap.val());
+      });
+      setMessages(d);
+    });
+    return () => {
+      ref_messages.off();
+    };
+  }, []);
 
   const sendMessage = () => {
     if (!msg.trim()) return;
 
-    const ref_disc = ref_listDiscussions.child(discid);
-    const ref_messages = ref_disc.child("messages");
-    const newMessage = {
+    const key = ref_messages.push().key;
+    ref_messages.child(key).set({
       body: msg,
-      time: Date.now(),
+      time: new Date().toLocaleString(),
       sender: currentid,
       receiver: secondid,
-    };
+    });
 
-    ref_messages.push(newMessage)
-      .then(() => {
-        setMsg("");
-        // Scroll to bottom after sending
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      });
-  };
-
-  const renderMessage = ({ item }) => {
-    const isCurrentUser = item.sender === currentid;
-    return (
-      <View
-        style={[
-          styles.messageContainer,
-          isCurrentUser ? styles.currentUser : styles.otherUser,
-          isCurrentUser ? { borderBottomRightRadius: 0 } : { borderBottomLeftRadius: 0 },
-        ]}
-      >
-        <Text style={styles.messageText}>{item.body}</Text>
-        <Text style={styles.messageTime}>
-          {new Date(item.time).toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })}
-        </Text>
-      </View>
-    );
+    setmsg("");
+    ref_typing_me.set(false);
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-    >
+    <ImageBackground source={require("../assets/loginback.jpg")} style={styles.container}>
+      {/* En-tête de la discussion */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+        <Text style={styles.title}>Chat</Text>
+        <TouchableOpacity onPress={() => alert("Appel en cours...")}>
+          <Ionicons name="call-outline" size={30} color="black" />
         </TouchableOpacity>
-        <Image source={{ uri: image }} style={styles.avatar} />
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerText}>{pseudo}</Text>
-          <Text style={styles.statusText}>Online</Text>
-        </View>
       </View>
 
+      {/* Liste des messages */}
       <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        style={styles.chatContainer}
-        contentContainerStyle={styles.chatContent}
-        // Remove inverted prop
-        initialNumToRender={20}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-        onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+        data={Messages}
+        style={styles.messageList}
+        keyExtractor={(_, index) => index.toString()}
+        renderItem={({ item }) => {
+          const isMine = item.sender === currentid;
+          return (
+            <View
+              style={[
+                styles.messageContainer,
+                {
+                  backgroundColor: isMine ? "rgba(57, 91, 228, 0.98)" : "white",
+                  alignSelf: isMine ? "flex-end" : "flex-start",
+                },
+              ]}
+            >
+              <Text style={{ color: isMine ? "white" : "black" }}>{item.body}</Text>
+              <Text style={[styles.time, { color: isMine ? "white" : "black" }]}>{item.time}</Text>
+            </View>
+          );
+        }}
       />
 
-      <View style={styles.footer}>
-        <View style={styles.inputContainer}>
-          <TextInput
-            value={msg}
-            onChangeText={setMsg}
-            placeholder="Type a message"
-            placeholderTextColor="#999"
-            style={styles.input}
-            multiline
-          />
-          <TouchableOpacity style={styles.attachButton}>
-            <Ionicons name="attach" size={24} color="#999" />
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
-          <Ionicons name="send" size={24} color="#fff" />
-        </TouchableOpacity>
+      {/* Affichage de "is typing" */}
+      {istyping && <Text style={styles.typingText}>L'autre utilisateur écrit...</Text>}
+
+      {/* Champ de saisie et bouton d'envoi */}
+      <View style={styles.inputContainer}>
+        <TextInput
+          value={msg}
+          onChangeText={(text) => {
+            setmsg(text);
+            ref_typing_me.set(true);
+          }}
+          placeholder="Message..."
+          style={styles.textInput}
+          onBlur={() => ref_typing_me.set(false)}
+        />
+        <Button title="Envoyer" onPress={sendMessage} />
       </View>
-    </KeyboardAvoidingView>
+    </ImageBackground>
   );
 };
 
 export default Chat;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ECE5DD",
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#075E54",
-    paddingTop: Platform.OS === "ios" ? 40 : 20,
+    marginTop: 40,
+    paddingHorizontal: 20,
     paddingBottom: 10,
-    paddingHorizontal: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#ffffffaa",
   },
-  backButton: {
-    padding: 10,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginHorizontal: 10,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  headerText: {
-    fontSize: 18,
-    color: "#fff",
+  title: {
+    fontSize: 30,
     fontWeight: "bold",
+    color: "black",
   },
-  statusText: {
-    fontSize: 12,
-    color: "#E0E0E0",
-  },
-  chatContainer: {
+  messageList: {
     flex: 1,
-  },
-  chatContent: {
-    padding: 10,
-    paddingBottom: 20,
+    paddingHorizontal: 10,
+    marginTop: 10,
   },
   messageContainer: {
-    padding: 10,
-    borderRadius: 10,
     marginVertical: 5,
-    maxWidth: "75%",
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
-  },
-  currentUser: {
-    backgroundColor: "#DCF8C6",
-    alignSelf: "flex-end",
-  },
-  otherUser: {
-    backgroundColor: "#fff",
-    alignSelf: "flex-start",
-  },
-  messageText: {
-    fontSize: 16,
-    color: "#000",
-  },
-  messageTime: {
-    fontSize: 11,
-    color: "#666",
-    alignSelf: "flex-end",
-    marginTop: 5,
-  },
-  footer: {
-    flexDirection: "row",
     padding: 10,
-    backgroundColor: "#F2F0E9",
-    alignItems: "center",
+    borderRadius: 8,
+    maxWidth: "80%",
+  },
+  time: {
+    fontSize: 10,
+    marginTop: 4,
+  },
+  typingText: {
+    fontStyle: "italic",
+    color: "#fff",
+    marginLeft: 15,
+    marginBottom: 4,
   },
   inputContainer: {
-    flex: 1,
     flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 25,
+    padding: 10,
     alignItems: "center",
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#ccc",
+  },
+  textInput: {
+    flex: 1,
+    height: 45,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 10,
     paddingHorizontal: 10,
     marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 100,
-    fontSize: 16,
-    paddingVertical: 8,
-  },
-  attachButton: {
-    padding: 5,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#00A884",
-    justifyContent: "center",
-    alignItems: "center",
   },
 });

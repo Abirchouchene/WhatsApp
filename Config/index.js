@@ -2,8 +2,11 @@
 import app from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/database";
+import { createClient } from '@supabase/supabase-js';
+import { Buffer } from 'buffer';
+global.Buffer = Buffer;
 
-// Your web app's Firebase configuration
+// Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBtiyTeEd3xwEM2vefFCClkEM16lcVNclo",
   authDomain: "whatsapp-84e47.firebaseapp.com",
@@ -17,5 +20,6 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const firebase = app.initializeApp(firebaseConfig);
+
 
 export default firebase;
