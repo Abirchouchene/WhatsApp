@@ -27,18 +27,6 @@ A modern group chat mobile application built with **React Native** and **Firebas
 
 ---
 
-## 📷 Screenshots
-
-<p float="left">
-  <img src="https://i.imgur.com/abc123.png" width="250" />
-  <img src="https://i.imgur.com/def456.png" width="250" />
-  <img src="https://i.imgur.com/ghi789.png" width="250" />
-</p>
-
-*(Replace the URLs above with your actual screenshots or GIF previews)*
-
----
-
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -50,8 +38,8 @@ A modern group chat mobile application built with **React Native** and **Firebas
 ### Installation
 
 ```bash
-git clone https://github.com/Abir-Chochene/group-chat-app.git
-cd group-chat-app
+git clone [https://github.com/Abirchouchene/WhatsApp]
+cd whatsapp
 npm install
 expo start
 ```
@@ -85,15 +73,15 @@ export default firebase;
 
 ## 🧠 Architecture Overview
 
-- **Screens**: Components like `AddGroupMembers`, `GroupChat`, etc.
-- **Firebase**: Used for data persistence and user account management.
-- **Navigation**: Managed using `@react-navigation/native`.
+- **Screens**
+- **Firebase**
+- **Navigation**
 
 ---
 
 ## 👨‍💻 Contributors
 
-- 🧑‍💼 **Project Owner:** [Abir Chochene](https://github.com/Abir-Chochene)
+- 🧑‍💼 **Project Owner:** [Abir Chochene](https://github.com/Abir-Chouchene)
 - 🤝 **Collaborator:** [Louay Amor](https://github.com/LouayAmor)
 
 ---
