@@ -1,4 +1,4 @@
-package com.anonymous.WhatsUp_ChoucheneAbir
+package com.anonymous.Whatsup_amorlouay
 
 import android.app.Application
 import android.content.res.Configuration

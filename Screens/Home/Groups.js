@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,39 +13,44 @@ import {
 import { getDatabase, ref, onValue, push, remove } from 'firebase/database';
 import { useNavigation } from '@react-navigation/native';
 
+const PRIMARY_COLOR = '#075E54';
+const ACCENT_COLOR = '#25D366';
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/150';
+
 export default function Groups() {
   const navigation = useNavigation();
   const [groups, setGroups] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Modal & form states
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupImage, setGroupImage] = useState('');
 
+  // Fetch groups from Firebase
   useEffect(() => {
     const db = getDatabase();
     const groupsRef = ref(db, 'groups/');
     const unsubscribe = onValue(groupsRef, (snapshot) => {
       const data = snapshot.val();
-      const groupList = [];
-      for (let id in data) {
-        groupList.push({ id, ...data[id] });
+      if (data) {
+        const groupList = Object.keys(data).map((id) => ({
+          id,
+          ...data[id],
+        }));
+        setGroups(groupList);
+      } else {
+        setGroups([]);
       }
-      setGroups(groupList);
     });
 
     return () => unsubscribe();
   }, []);
-
-  const handleSearch = (text) => setSearchQuery(text);
 
   const filteredGroups = groups.filter((group) =>
     group.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleGroupPress = (groupId) => {
-    navigation.navigate('GroupDetails', { groupId }); // Navigate to GroupDetails
+    navigation.navigate('GroupDetails', { groupId });
   };
 
   const handleCreateGroup = () => {
@@ -54,19 +59,19 @@ export default function Groups() {
       return;
     }
 
-    const newGroup = {
-      name: groupName.trim(),
-      image: groupImage.trim() || 'https://via.placeholder.com/150',
-    };
-
     const db = getDatabase();
     const groupsRef = ref(db, 'groups/');
+    const newGroup = {
+      name: groupName.trim(),
+      image: groupImage.trim() || PLACEHOLDER_IMAGE,
+    };
+
     push(groupsRef, newGroup)
       .then(() => {
         Alert.alert('Succès', 'Le groupe a été créé avec succès.');
-        setIsModalVisible(false);
         setGroupName('');
         setGroupImage('');
+        setIsModalVisible(false);
       })
       .catch(() => {
         Alert.alert('Erreur', 'Impossible de créer le groupe.');
@@ -94,48 +99,46 @@ export default function Groups() {
     );
   };
 
+  const renderGroupItem = useCallback(({ item }) => (
+    <View style={styles.groupItem}>
+      <TouchableOpacity style={styles.groupInfo} onPress={() => handleGroupPress(item.id)}>
+        <Image source={{ uri: item.image }} style={styles.groupImage} />
+        <Text style={styles.groupName}>{item.name}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => handleDeleteGroup(item.id)} style={styles.deleteButton}>
+        <Text style={styles.deleteText}>Supprimer</Text>
+      </TouchableOpacity>
+    </View>
+  ), [handleDeleteGroup]);
+
   return (
     <View style={styles.container}>
+      {/* Search */}
       <TextInput
         placeholder="Rechercher un groupe"
         value={searchQuery}
-        onChangeText={handleSearch}
+        onChangeText={setSearchQuery}
         style={styles.searchInput}
       />
-      <TouchableOpacity
-        onPress={() => setIsModalVisible(true)}
-        style={styles.createButton}
-      >
-        <Text style={styles.createButtonText}>Créer un Groupe</Text>
+
+      {/* Create Button */}
+      <TouchableOpacity onPress={() => setIsModalVisible(true)} style={styles.createButton}>
+        <Text style={styles.createButtonText}>+ Créer un Groupe</Text>
       </TouchableOpacity>
 
+      {/* Group List */}
       <FlatList
         data={filteredGroups}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.groupItem}>
-            <TouchableOpacity
-              style={styles.groupInfo}
-              onPress={() => handleGroupPress(item.id)}
-            >
-              <Image source={{ uri: item.image }} style={styles.groupImage} />
-              <Text>{item.name}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => handleDeleteGroup(item.id)}
-              style={styles.deleteButton}
-            >
-              <Text style={styles.deleteText}>Supprimer</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        renderItem={renderGroupItem}
+        contentContainerStyle={{ paddingBottom: 50 }}
       />
 
-      {/* Modal for group creation */}
+      {/* Modal for Create Group */}
       <Modal
         visible={isModalVisible}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setIsModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
@@ -157,10 +160,7 @@ export default function Groups() {
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
                 <Text style={styles.cancelText}>Annuler</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleCreateGroup}
-                style={styles.confirmButton}
-              >
+              <TouchableOpacity onPress={handleCreateGroup} style={styles.confirmButton}>
                 <Text style={styles.confirmText}>Créer</Text>
               </TouchableOpacity>
             </View>
@@ -171,38 +171,42 @@ export default function Groups() {
   );
 }
 
-
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    backgroundColor: '#f7f7f7',
+    padding: 15,
   },
   searchInput: {
-    height: 40,
+    backgroundColor: 'white',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    height: 45,
+    marginBottom: 15,
     borderColor: '#ccc',
     borderWidth: 1,
-    borderRadius: 10,
-    paddingLeft: 10,
-    marginBottom: 10,
   },
   createButton: {
-    backgroundColor: '#34b7f1',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginBottom: 15,
+    alignItems: 'center',
   },
   createButtonText: {
     color: 'white',
-    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   groupItem: {
     flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 12,
+    marginBottom: 10,
     alignItems: 'center',
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
     justifyContent: 'space-between',
+    elevation: 1,
   },
   groupInfo: {
     flexDirection: 'row',
@@ -213,55 +217,68 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    marginRight: 10,
+    marginRight: 12,
+    backgroundColor: '#eee',
+  },
+  groupName: {
+    fontSize: 16,
+    color: '#333',
   },
   deleteButton: {
-    backgroundColor: '#ff4d4d',
+    backgroundColor: '#d9534f',
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 5,
-    marginLeft: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   deleteText: {
     color: 'white',
+    fontSize: 12,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-end',
   },
   modalContainer: {
     backgroundColor: 'white',
     padding: 20,
-    borderRadius: 10,
-    width: '90%',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    minHeight: '45%',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 10,
+    color: PRIMARY_COLOR,
+    marginBottom: 15,
+    textAlign: 'center',
   },
   input: {
-    borderWidth: 1,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 15,
+    padding: 12,
+    marginBottom: 15,
     borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+    borderWidth: 1,
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
   },
   cancelText: {
-    color: '#34b7f1',
+    color: PRIMARY_COLOR,
+    fontSize: 16,
+    marginRight: 20,
+    paddingVertical: 6,
   },
   confirmButton: {
-    backgroundColor: '#34b7f1',
-    padding: 10,
-    borderRadius: 5,
+    backgroundColor: ACCENT_COLOR,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
   confirmText: {
     color: 'white',
+    fontWeight: 'bold',
   },
 });

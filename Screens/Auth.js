@@ -6,7 +6,7 @@ import firebase from '../Config';
 export default function Auth(props) {
   const auth = firebase.auth();
 
-  const [email, setEmail] = useState('abir@gmail.com');
+  const [email, setEmail] = useState('louay@gmail.com');
   const [password, setPassword] = useState('123456789');
   const [confirmPassword, setConfirmPassword] = useState('');
 

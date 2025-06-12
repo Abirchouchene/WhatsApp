@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "WhatsUp_ChoucheneAbir",
-    "slug": "WhatsUp_ChoucheneAbir",
+    "name": "Whatsup_amorlouay",
+    "slug": "Whatsup_amorlouay",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,7 +20,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.WhatsUp_ChoucheneAbir"
+      "package": "com.anonymous.Whatsup_amorlouay"
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -58,11 +58,11 @@ export default function MyAccount(props) {
       console.log("Base64 length:", base64.length);
   
       const fileBuffer = decode(base64);
-      const fileName = `lesimages/${Date.now()}.jpg`;
+      const fileName = `imagesgl2/${Date.now()}.jpg`;
   
       console.log("Uploading to Supabase storage with file name:", fileName);
       const { error: uploadError } = await supabase.storage
-        .from("lesimages")
+        .from("imagesgl2")
         .upload(fileName, fileBuffer, {
           contentType: 'image/jpeg',
           upsert: false,
@@ -74,7 +74,7 @@ export default function MyAccount(props) {
       }
   
       const { data: urlData, error: urlError } = supabase.storage
-        .from("lesimages")
+        .from("imagesgl2")
         .getPublicUrl(fileName);
   
       if (urlError) {
